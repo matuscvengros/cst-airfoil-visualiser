@@ -12,10 +12,10 @@ const comb = (n, k) => {
   return factorial(n) / (factorial(k) * factorial(n - k));
 };
 
-const DAE11_LE_WEIGHT = 0.5035068867316306;
-const DAE11_TE_THICKNESS = 0.00011059192135088117;
-const DAE11_UPPER = [0.17036014, 0.15272658, 0.51688551, 0.09212467, 0.66904449, 0.14345864, 0.28990386, 0.16207357];
-const DAE11_LOWER = [-0.16310508, -0.14398528, 0.08896135, -0.0706084, 0.09741634, 0.01466031, 0.07888292, 0.08075122];
+const DAE11_LE_WEIGHT = 0.5035;
+const DAE11_TE_THICKNESS = 0.0001;
+const DAE11_UPPER = [0.1703, 0.1527, 0.5168, 0.0921, 0.6690, 0.1435, 0.2899, 0.1621];
+const DAE11_LOWER = [-0.1631, -0.1440, 0.0890, -0.0706, 0.0974, 0.0147, 0.0789, 0.0808];
 
 const SliderGroup = ({ weights, isUpper, onWeightChange }) => {
   const containerClass = isUpper ? 'bg-purple-50 border-purple-100' : 'bg-red-50 border-red-100';
