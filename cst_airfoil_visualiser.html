@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CST Airfoil Visualizer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        input[type=range] { -webkit-appearance: none; }
+        input[type=range]:focus { outline: none; }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 16px; width: 16px;
+            border-radius: 50%; background: currentColor;
+            cursor: pointer; margin-top: -5px; 
+            box-shadow: 0 1px 2px rgba(0,0,0,0.2); transition: transform 0.1s;
+        }
+        input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%; height: 6px; cursor: pointer; background: transparent; border-radius: 9999px;
+        }
+        input[type=range]::-moz-range-thumb {
+            height: 16px; width: 16px; border-radius: 50%; border: none;
+            background: currentColor; cursor: pointer;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.2); transition: transform 0.1s;
+        }
+        input[type=range]::-moz-range-track {
+            width: 100%; height: 6px; cursor: pointer; background: transparent; border-radius: 9999px;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 min-h-screen py-8 px-4 font-sans text-slate-800 flex justify-center">
+
+    <div class="w-full max-w-5xl bg-white rounded-xl shadow-lg border border-slate-200 p-6 flex flex-col">
+        
+        <!-- Header -->
+        <div class="flex flex-col md:flex-row md:items-end justify-between mb-6 gap-4 border-b border-slate-100 pb-6">
+            <div>
+                <h1 class="text-2xl font-bold text-slate-800 mb-1">CST Airfoil Visualizer</h1>
+                <p class="text-slate-600 text-sm">
+                    <strong>DAE-11</strong> (True Equal Aspect Ratio). Cosine Spacing.
+                </p>
+            </div>
+
+            <div class="flex items-center gap-3 bg-slate-50 p-3 rounded-lg border border-slate-200">
+                <i data-lucide="settings" class="w-4 h-4 text-slate-400"></i>
+                <label class="text-sm font-medium text-slate-700">Weights Count (N+1):</label>
+                <input 
+                    type="number" id="orderInput" min="3" max="21" value="8"
+                    class="w-16 px-2 py-1 border border-slate-300 rounded text-center font-mono text-sm focus:outline-none focus:border-blue-500"
+                >
+                <button 
+                    id="setOrderBtn"
+                    class="flex items-center gap-2 px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded transition-colors"
+                >
+                    <i data-lucide="refresh-cw" class="w-3 h-3"></i>
+                    Reset
+                </button>
+            </div>
+        </div>
+
+        <!-- Plot Area -->
+        <div class="relative w-full bg-slate-50 rounded-lg border border-slate-200 mb-6 overflow-hidden h-[400px] select-none flex items-center justify-center">
+            <!-- Added preserveAspectRatio="xMidYMid meet" to ensure scaling stays true -->
+            <svg id="plotSvg" width="100%" height="100%" viewBox="0 0 800 400" preserveAspectRatio="xMidYMid meet">
+                <g id="gridGroup" stroke="#e2e8f0" stroke-width="1"></g>
+                <path id="airfoilFill" d="" fill="rgba(147, 51, 234, 0.05)" stroke="none" />
+                <path id="airfoilUpper" d="" fill="none" stroke="#9333ea" stroke-width="2.5" vector-effect="non-scaling-stroke" />
+                <path id="airfoilLower" d="" fill="none" stroke="#ef4444" stroke-width="2.5" vector-effect="non-scaling-stroke" />
+                <text id="labelLE" x="0" y="0" font-size="12" fill="#64748b" text-anchor="middle">LE</text>
+                <text id="labelTE" x="0" y="0" font-size="12" fill="#64748b" text-anchor="middle">TE</text>
+            </svg>
+        </div>
+
+        <!-- Controls Grid -->
+        <div class="grid md:grid-cols-2 gap-6">
+            
+            <!-- Upper Column -->
+            <div class="flex flex-col gap-4">
+                <div class="p-4 rounded-lg border bg-purple-50 border-purple-100 flex-1">
+                    <div class="flex items-center gap-2 mb-3 pb-2 border-b border-purple-200/50">
+                        <div class="w-3 h-3 rounded-full bg-purple-500"></div>
+                        <h3 class="font-semibold text-slate-800">Upper Weights</h3>
+                        <span id="upperCount" class="ml-auto text-xs text-slate-400"></span>
+                    </div>
+                    <div id="upperSliders" class="grid grid-cols-1 gap-2 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar"></div>
+                </div>
+
+                <!-- LE Camber Control -->
+                <div class="p-4 rounded-lg border bg-purple-50/50 border-purple-100">
+                    <div class="flex items-center justify-between mb-3">
+                        <label class="text-xs font-bold text-purple-700 uppercase tracking-wide">LE Mod Weight</label>
+                        <input 
+                            type="number" id="leCamberInput" step="0.0001" value="0.5035"
+                            class="w-24 px-2 py-1 bg-white border border-purple-200 rounded text-right font-mono text-sm focus:outline-none focus:border-purple-400"
+                        >
+                    </div>
+                    <input 
+                        type="range" id="leCamberSlider" min="-2.0" max="2.0" step="0.001" value="0.5035"
+                        class="w-full h-1.5 rounded-lg appearance-none cursor-pointer bg-purple-200 text-purple-500"
+                    >
+                </div>
+            </div>
+
+            <!-- Lower Column -->
+            <div class="flex flex-col gap-4">
+                <div class="p-4 rounded-lg border bg-red-50 border-red-100 flex-1">
+                    <div class="flex items-center gap-2 mb-3 pb-2 border-b border-red-200/50">
+                        <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                        <h3 class="font-semibold text-slate-800">Lower Weights</h3>
+                        <span id="lowerCount" class="ml-auto text-xs text-slate-400"></span>
+                    </div>
+                    <div id="lowerSliders" class="grid grid-cols-1 gap-2 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar"></div>
+                </div>
+
+                <!-- TE Thickness Control -->
+                <div class="p-4 rounded-lg border bg-red-50/50 border-red-100">
+                    <div class="flex items-center justify-between mb-3">
+                        <label class="text-xs font-bold text-red-700 uppercase tracking-wide">TE Thickness (Δζ)</label>
+                        <input 
+                            type="number" id="teThicknessInput" step="0.0001" value="0.0001"
+                            class="w-24 px-2 py-1 bg-white border border-red-200 rounded text-right font-mono text-sm focus:outline-none focus:border-red-400"
+                        >
+                    </div>
+                    <input 
+                        type="range" id="teSlider" min="0" max="0.05" step="0.0001"
+                        class="w-full h-1.5 rounded-lg appearance-none cursor-pointer bg-red-200 text-red-500"
+                    >
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const factorial = (n) => {
+            if (n === 0 || n === 1) return 1;
+            let result = 1;
+            for (let i = 2; i <= n; i++) result *= i;
+            return result;
+        };
+        const comb = (n, k) => factorial(n) / (factorial(k) * factorial(n - k));
+
+        // --- EXACT WEIGHTS (Provided) ---
+        const DAE11_LE_WEIGHT = 0.5035068867316306;
+        const DAE11_TE_THICKNESS = 0.00011059192135088117;
+        const DAE11_UPPER = [0.17036014, 0.15272658, 0.51688551, 0.09212467, 0.66904449, 0.14345864, 0.28990386, 0.16207357];
+        const DAE11_LOWER = [-0.16310508, -0.14398528, 0.08896135, -0.0706084, 0.09741634, 0.01466031, 0.07888292, 0.08075122];
+
+        let appState = {
+            weightsCount: 8,
+            leWeight: DAE11_LE_WEIGHT,
+            teThickness: DAE11_TE_THICKNESS,
+            upperWeights: [...DAE11_UPPER],
+            lowerWeights: [...DAE11_LOWER]
+        };
+
+        const SVG_WIDTH = 800;
+        const SVG_HEIGHT = 400;
+        const PADDING = 40;
+        const PLOT_WIDTH = SVG_WIDTH - (PADDING * 2);
+        
+        const scaleX = (val) => PADDING + val * PLOT_WIDTH;
+        
+        // EQUAL SCALE: 1 unit of X = 1 unit of Y
+        // scaleY maps 0 (center) to SVG_HEIGHT/2
+        // Since x=0..1 spans PLOT_WIDTH pixels, y=1 must span PLOT_WIDTH pixels
+        const scaleY = (val) => (SVG_HEIGHT / 2) - (val * PLOT_WIDTH); 
+
+        function init() {
+            lucide.createIcons();
+            drawGrid();
+            updateUI();
+            drawAirfoil();
+
+            document.getElementById('setOrderBtn').addEventListener('click', () => {
+                const val = parseInt(document.getElementById('orderInput').value);
+                if (val >= 3 && val <= 21) generateNewOrder(val);
+                else alert("Please choose a count between 3 and 21");
+            });
+
+            const leSlider = document.getElementById('leCamberSlider');
+            const leInput = document.getElementById('leCamberInput');
+            const updateLE = (val) => {
+                const floatVal = parseFloat(val);
+                if(!isNaN(floatVal)) {
+                    appState.leWeight = floatVal;
+                    leSlider.value = floatVal;
+                    leInput.value = floatVal;
+                    drawAirfoil();
+                }
+            };
+            leSlider.addEventListener('input', (e) => updateLE(e.target.value));
+            leInput.addEventListener('input', (e) => updateLE(e.target.value));
+            leSlider.value = appState.leWeight;
+            leInput.value = appState.leWeight;
+
+            const teSlider = document.getElementById('teSlider');
+            const teInput = document.getElementById('teThicknessInput');
+            const updateTE = (val) => {
+                const floatVal = parseFloat(val);
+                if(!isNaN(floatVal)) {
+                    appState.teThickness = floatVal;
+                    teSlider.value = floatVal;
+                    teInput.value = floatVal;
+                    drawAirfoil();
+                }
+            };
+            teSlider.addEventListener('input', (e) => updateTE(e.target.value));
+            teInput.addEventListener('input', (e) => updateTE(e.target.value));
+            teSlider.value = appState.teThickness;
+            teInput.value = appState.teThickness;
+        }
+
+        function generateNewOrder(count) {
+            appState.weightsCount = count;
+            appState.upperWeights = [];
+            appState.lowerWeights = [];
+            const n = count - 1;
+            for(let i=0; i<=n; i++) {
+                const t = i/n;
+                let uVal = 0.2 * Math.pow(1 - t, 2) + 0.4 * t * (1 - t);
+                let lVal = -0.2 * Math.pow(1 - t, 2) - 0.15 * t * (1 - t);
+                if(i===n) { uVal=0; lVal=0; }
+                appState.upperWeights.push(uVal);
+                appState.lowerWeights.push(lVal);
+            }
+            updateUI();
+            drawAirfoil();
+        }
+
+        function updateUI() {
+            document.getElementById('upperCount').innerText = `${appState.weightsCount} weights`;
+            document.getElementById('lowerCount').innerText = `${appState.weightsCount} weights`;
+            renderSliders(true);
+            renderSliders(false);
+        }
+
+        function drawGrid() {
+            const g = document.getElementById('gridGroup');
+            let html = '';
+            [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1].forEach(v => {
+                const x = scaleX(v);
+                const dash = (v % 0.5 === 0) ? "" : "4 4";
+                html += `<line x1="${x}" y1="${PADDING}" x2="${x}" y2="${SVG_HEIGHT - PADDING}" stroke-dasharray="${dash}" />`;
+            });
+            const midY = SVG_HEIGHT / 2;
+            html += `<line x1="${PADDING}" y1="${midY}" x2="${SVG_WIDTH - PADDING}" y2="${midY}" stroke="#94a3b8" stroke-dasharray="4 4" />`;
+            g.innerHTML = html;
+            document.getElementById('labelLE').setAttribute('x', scaleX(0));
+            document.getElementById('labelLE').setAttribute('y', midY + 20);
+            document.getElementById('labelTE').setAttribute('x', scaleX(1));
+            document.getElementById('labelTE').setAttribute('y', midY + 20);
+        }
+
+        function drawAirfoil() {
+            const numPoints = 400;
+            const count = appState.weightsCount;
+            const order = count - 1;
+            const teHalf = appState.teThickness / 2;
+            const K_LE = count + 0.5;
+
+            let dUpper = "";
+            let dLower = "";
+            let dFill = "";
+
+            const calcSurface = (psi, weights) => {
+                const C = Math.sqrt(psi) * (1 - psi); 
+                let S = 0;
+                for (let j = 0; j <= order; j++) {
+                    const K = comb(order, j);
+                    const basis = K * Math.pow(psi, j) * Math.pow(1 - psi, order - j);
+                    S += weights[j] * basis;
+                }
+                return C * S;
+            };
+
+            for (let i = 0; i <= numPoints; i++) {
+                const beta = (i / numPoints) * Math.PI;
+                const psi = 0.5 * (1.0 - Math.cos(beta));
+                
+                const yBaseUpper = calcSurface(psi, appState.upperWeights);
+                const yBaseLower = calcSurface(psi, appState.lowerWeights);
+                const leTerm = appState.leWeight * psi * Math.pow(1 - psi, K_LE);
+
+                // Calculate pixel coordinates (Equal Aspect Ratio)
+                const pyUpper = scaleY(yBaseUpper + leTerm + psi * teHalf);
+                const pyLower = scaleY(yBaseLower + leTerm - psi * teHalf);
+                const px = scaleX(psi);
+
+                if (i === 0) {
+                    dUpper += `M ${px} ${pyUpper}`;
+                    dLower += `M ${px} ${pyLower}`;
+                } else {
+                    dUpper += ` L ${px} ${pyUpper}`;
+                    dLower += ` L ${px} ${pyLower}`;
+                }
+            }
+
+            document.getElementById('airfoilUpper').setAttribute('d', dUpper);
+            document.getElementById('airfoilLower').setAttribute('d', dLower);
+
+            // Fill Loop
+            dFill = dUpper;
+            for (let i = numPoints; i >= 0; i--) {
+                const beta = (i / numPoints) * Math.PI;
+                const psi = 0.5 * (1.0 - Math.cos(beta));
+                
+                const yBaseLower = calcSurface(psi, appState.lowerWeights);
+                const leTerm = appState.leWeight * psi * Math.pow(1 - psi, K_LE);
+                const pyLower = scaleY(yBaseLower + leTerm - psi * teHalf);
+                const px = scaleX(psi);
+
+                dFill += ` L ${px} ${pyLower}`;
+            }
+            dFill += " Z";
+            document.getElementById('airfoilFill').setAttribute('d', dFill);
+        }
+
+        function renderSliders(isUpper) {
+            const container = document.getElementById(isUpper ? 'upperSliders' : 'lowerSliders');
+            const weights = isUpper ? appState.upperWeights : appState.lowerWeights;
+            const textColorClass = isUpper ? 'text-purple-500' : 'text-red-500';
+            container.innerHTML = ''; 
+
+            weights.forEach((w, i) => {
+                const div = document.createElement('div');
+                div.className = "flex items-center gap-2";
+                const label = document.createElement('label');
+                label.className = "text-[10px] font-bold text-slate-400 w-10 text-right shrink-0";
+                label.innerText = `A${i}`; 
+                div.appendChild(label);
+
+                const range = document.createElement('input');
+                range.type = "range";
+                range.min = isUpper ? "-0.5" : "-1.0";
+                range.max = isUpper ? "1.0" : "0.5";
+                range.step = "0.001";
+                range.value = w;
+                range.className = `flex-1 h-1.5 rounded-lg appearance-none cursor-pointer bg-gray-200 ${textColorClass}`;
+                
+                const num = document.createElement('input');
+                num.type = "number";
+                num.value = w;
+                num.step = "0.001";
+                num.className = "w-16 p-0.5 text-right text-xs border border-slate-300 rounded focus:outline-none focus:border-blue-400";
+
+                const updateValue = (val) => {
+                    const floatVal = parseFloat(val);
+                    if (isNaN(floatVal)) return;
+                    if (isUpper) appState.upperWeights[i] = floatVal;
+                    else appState.lowerWeights[i] = floatVal;
+                    range.value = floatVal;
+                    num.value = floatVal;
+                    drawAirfoil();
+                };
+
+                range.addEventListener('input', (e) => updateValue(e.target.value));
+                num.addEventListener('input', (e) => updateValue(e.target.value));
+
+                div.appendChild(range);
+                div.appendChild(num);
+                container.appendChild(div);
+            });
+        }
+
+        init();
+    </script>
+</body>
+</html>
