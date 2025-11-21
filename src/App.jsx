@@ -58,7 +58,7 @@ const SliderGroup = ({ weights, isUpper, onWeightChange }) => {
   );
 };
 
-const CSTVisualizer = () => {
+const CSTVisualiser = () => {
   const [weightsCount, setWeightsCount] = useState(8);
   const [inputCount, setInputCount] = useState("8");
   const [leWeight, setLeWeight] = useState(DAE11_LE_WEIGHT);
@@ -166,7 +166,7 @@ const CSTVisualizer = () => {
       
       <div className="flex flex-col md:flex-row md:items-end justify-between mb-6 gap-4 border-b border-slate-100 pb-6">
         <div>
-          <h2 className="text-2xl font-bold text-slate-800 mb-1">CST Airfoil Visualizer</h2>
+          <h2 className="text-2xl font-bold text-slate-800 mb-1">CST Airfoil Visualiser</h2>
           <p className="text-slate-600 text-sm">
             <strong>DAE-11</strong> (Equal Scale). Cosine Spacing.
           </p>
@@ -259,4 +259,4 @@ const CSTVisualizer = () => {
   );
 };
 
-export default CSTVisualizer;
+export default CSTVisualiser;
